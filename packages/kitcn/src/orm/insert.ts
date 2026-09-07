@@ -48,6 +48,7 @@ import type {
   UpdateSet,
 } from './types';
 import { isUnsetToken } from './unset-token';
+import { runInOrmWriteBatch } from './write-batch';
 import { runInOrmWriteScope } from './write-cache';
 import { hasLifecycleHooks } from './write-fanout';
 
@@ -182,7 +183,9 @@ export class ConvexInsertBuilder<
   }
 
   async execute(): Promise<MutationResult<TTable, TReturning>> {
-    return await runInOrmWriteScope(this.db, () => this._runStatement());
+    return await runInOrmWriteScope(this.db, () =>
+      runInOrmWriteBatch(this.db, () => this._runStatement())
+    );
   }
 
   private async _runStatement(): Promise<MutationResult<TTable, TReturning>> {
