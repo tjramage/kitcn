@@ -7000,6 +7000,29 @@ export class GelRelationalQuery<
       return this._returnSelectedRows(selectedRows);
     }
 
+    const matchesPostFetchMembership = async (row: any) => {
+      const visibleRows = await this._applyRlsSelectFilter(
+        [row],
+        this.tableConfig
+      );
+      if (visibleRows.length === 0) {
+        return false;
+      }
+      if (!whereFilter) {
+        return true;
+      }
+      const matchingRows = await this._applyRelationsFilterToRows(
+        visibleRows,
+        this.tableConfig,
+        whereFilter,
+        this.edgeMetadata,
+        0,
+        MAX_RELATION_DEPTH,
+        this.config.with as Record<string, unknown> | undefined
+      );
+      return matchingRows.length > 0;
+    };
+
     if (
       queryConfig.strategy === 'multiProbe' &&
       queryConfig.index &&
@@ -7021,41 +7044,66 @@ export class GelRelationalQuery<
       );
       const probeHasResidualFilter =
         convexProbeFilters.length !== queryConfig.postFilters.length;
-      // RLS and relation `where` run after the union is assembled and can drop
-      // rows, so a per-probe bound would under-fill the page. `mode: 'skip'`
-      // drops nothing and must not cost the bound.
-      //
-      // Only RELATION keys cost the bound. The plain-column part of `where` is
-      // already compiled into the probes and `postFilters`, and `postFilters`
-      // reaching Convex as `.filter()` is what `probeHasResidualFilter` above
-      // guarantees — so `take()` counts matching rows, not scanned ones.
-      // Testing `Boolean(whereFilter)` here would disable the bound for every
-      // `in`/`ne`/`notIn` query, since those only exist inside a `where`.
+      // Scalar predicates are already in the probes/postFilters. Only relation
+      // predicates and active RLS can reject rows after Convex's filter pass.
+      const probeHasRelationMembership =
+        this._hasSearchDisallowedRelationFilter(whereFilter, this.tableConfig);
       const probeHasPostFetchMembership =
-        this._hasSearchDisallowedRelationFilter(
-          whereFilter,
-          this.tableConfig
-        ) ||
+        probeHasRelationMembership ||
         (this.rls?.mode !== 'skip' &&
           isRlsEnabled(this.tableConfig.table as any));
-      // Each probe is read in its own index order. Truncating one is only sound
-      // when that order is the requested order, so the global top-k is
-      // guaranteed to live inside the union of the per-probe top-k. Every probe
-      // walks the same index with the same pinned prefix the branch above
-      // already resolved, and `_indexEqPrefixCount` takes the minimum across
-      // probes — so the answer that holds for the least-pinned probe holds for
-      // all of them.
+      // Global top-k is contained in the union of per-probe top-k only when
+      // each probe reads in the requested order. The common direction was
+      // proved against the least-pinned index prefix across all probes.
       const probeOrderDirection = orderPushdownDirection;
       const probeBound =
         probeLimit !== undefined &&
-        !probeHasResidualFilter &&
-        !probeHasPostFetchMembership &&
         (postFetchOrders.length === 0 || probeOrderDirection !== null)
           ? probeOffset + probeLimit
           : undefined;
+      // Plain take counts Convex-filtered rows. With JavaScript predicates,
+      // filterWith must run before take so the bound counts surviving matches.
+      const probeBoundedTake =
+        probeBound !== undefined &&
+        !probeHasResidualFilter &&
+        !probeHasPostFetchMembership;
+      const probeSchemaDefinition = (this.schema as any)[OrmSchemaDefinition];
+      // Streams require defineSchema. Relation predicates remain batched:
+      // singleton evaluation would bypass relationFanOutMaxKeys enforcement.
+      const probeStreamed =
+        probeBound !== undefined &&
+        !probeBoundedTake &&
+        !probeHasRelationMembership &&
+        !!probeSchemaDefinition;
 
       const probeRows = await Promise.all(
         queryConfig.probeFilters.map(async (probeFilters) => {
+          if (probeStreamed) {
+            const probeStream = stream(
+              this.db as GenericDatabaseReader<any>,
+              probeSchemaDefinition as any
+            )
+              .query(this.tableConfig.name as any)
+              .withIndex(queryConfig.index!.name as any, (q: any) => {
+                let indexQuery = q;
+                for (const filter of probeFilters) {
+                  indexQuery = this._applyFilterToQuery(indexQuery, filter);
+                }
+                return indexQuery;
+              })
+              // Match Convex's ascending default when no order was requested.
+              .order(probeOrderDirection ?? 'asc')
+              .filterWith(async (row: any) => {
+                for (const filter of queryConfig.postFilters) {
+                  if (!this._evaluatePostFetchFilter(row, filter)) {
+                    return false;
+                  }
+                }
+                return await matchesPostFetchMembership(row);
+              });
+            return await probeStream.take(probeBound as number);
+          }
+
           let probeQuery: any = this.db
             .query(queryConfig.table)
             .withIndex(queryConfig.index!.name, (q: any) => {
@@ -7066,7 +7114,7 @@ export class GelRelationalQuery<
               return indexQuery;
             });
 
-          if (probeBound !== undefined && probeOrderDirection) {
+          if (probeBoundedTake && probeOrderDirection) {
             probeQuery = probeQuery.order(probeOrderDirection);
           }
 
@@ -7081,9 +7129,9 @@ export class GelRelationalQuery<
             );
           }
 
-          return probeBound === undefined
-            ? await probeQuery.collect()
-            : await probeQuery.take(probeBound);
+          return probeBoundedTake
+            ? await probeQuery.take(probeBound as number)
+            : await probeQuery.collect();
         })
       );
 
@@ -7101,9 +7149,11 @@ export class GelRelationalQuery<
         );
       }
 
+      // Keep the policy-configuration assertion reachable on an empty stream.
       rows = await this._applyRlsSelectFilter(rows, this.tableConfig);
 
-      if (whereFilter) {
+      // Streamed probes have no relation predicates and already checked rows.
+      if (whereFilter && !probeStreamed) {
         rows = await this._applyRelationsFilterToRows(
           rows,
           this.tableConfig,
@@ -7134,29 +7184,6 @@ export class GelRelationalQuery<
       const selectedRows = await this._finalizeRows(rows);
       return this._returnSelectedRows(selectedRows);
     }
-
-    const matchesPostFetchMembership = async (row: any) => {
-      const visibleRows = await this._applyRlsSelectFilter(
-        [row],
-        this.tableConfig
-      );
-      if (visibleRows.length === 0) {
-        return false;
-      }
-      if (!whereFilter) {
-        return true;
-      }
-      const matchingRows = await this._applyRelationsFilterToRows(
-        visibleRows,
-        this.tableConfig,
-        whereFilter,
-        this.edgeMetadata,
-        0,
-        MAX_RELATION_DEPTH,
-        this.config.with as Record<string, unknown> | undefined
-      );
-      return matchingRows.length > 0;
-    };
 
     // M6.5 Phase 4: Handle cursor pagination separately
     if (isCursorPaginated) {
