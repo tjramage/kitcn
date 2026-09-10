@@ -4,6 +4,7 @@
 
 ## Patches
 
+- Fix React and Solid cRPC queries retrying deterministic client errors.
 - Fix `findMany` losing its read bound when a `limit` is combined with `in`, `ne`,
   `notIn` or a same-field `OR` on a table that has RLS enabled, or alongside a
   filter Convex cannot evaluate such as `contains`. Either one used to make the
