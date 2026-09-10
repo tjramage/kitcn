@@ -37,20 +37,22 @@ query loses the hydrated result on load.
 
 ## Fix
 
-`packages/kitcn/src/react/context.tsx` compares the token-derived identity only.
-`resolveAuthIdentity` already collapses a JWT to its non-volatile claims, so
-routine rotation stays a no-op while signing out, switching accounts, an opaque
-token becoming a JWT, and a change to any other claim all produce a different
-identity. The unused `isAuthenticated` read, ref field and effect dependency are
-gone, and the ref is now `previousIdentityRef`. Explicit
-`resetAuthQueries()` calls are untouched.
+`packages/kitcn/src/react/context.tsx` compares the token-derived identity and
+the direction of settled authentication changes. `resolveAuthIdentity` already
+collapses a JWT to its non-volatile claims, so routine rotation stays a no-op
+while signing out, switching accounts, an opaque token becoming a JWT, and a
+change to any other claim all produce a different identity. Convex confirming
+the same SSR token from false to true preserves hydrated data; Convex rejecting
+an accepted token from true to false clears auth-bound queries even when the
+token remains cached. Explicit `resetAuthQueries()` calls are untouched.
 
 ## Tests
 
-`packages/kitcn/src/react/context.test.tsx` gains one case: a JWT present on the
-first render, the flag moving false to true, back to false, and to true again
-with no reset, then the token going null and resetting once. The existing
-account-switch, claim-change, opaque-to-JWT and rotation cases stay as they are.
+`packages/kitcn/src/react/context.test.tsx` covers both directions explicitly: a
+JWT present on the first render survives the initial false-to-true confirmation,
+while a previously accepted token moving true to false resets auth-bound
+queries. The existing account-switch, claim-change, opaque-to-JWT and rotation
+cases stay as they are.
 
 ## Verification
 

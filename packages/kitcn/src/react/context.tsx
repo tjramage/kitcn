@@ -194,14 +194,16 @@ export function createCRPCContext<TApi extends Record<string, unknown>>(
   }) {
     const authStore = useAuthStore();
     const token = useAuthValue('token');
-    const previousIdentityRef = useRef<{
+    const isAuthenticated = useAuthValue('isAuthenticated');
+    const previousAuthRef = useRef<{
       identity: string | null;
+      isAuthenticated: boolean;
     } | null>(null);
     // Get fetchAccessToken from context (immediately available, no race condition)
     const fetchAccessToken = useFetchAccessToken();
 
     useEffect(() => {
-      const previous = previousIdentityRef.current;
+      const previous = previousAuthRef.current;
       const tokenReady = token === null || decodeJwtExp(token) !== null;
       // Compare identity claims, not the raw token. Convex proactively rotates
       // the access token every ~15 minutes and kitcn stamps a fresh `iat` into
@@ -212,20 +214,21 @@ export function createCRPCContext<TApi extends Record<string, unknown>>(
       // Non-JWT strings (the opaque SSR session token) keep their own signature
       // so the opaque -> JWT and opaque -> logout transitions still reset.
       const identity = resolveAuthIdentity(token);
-      previousIdentityRef.current = { identity };
+      previousAuthRef.current = { identity, isAuthenticated };
 
       if (!previous) {
         return;
       }
 
-      // Identity only. Whether Convex has accepted the token says nothing about
-      // which account holds it, and it flips on every server-rendered load once
-      // the token in the HTML is checked. A reset there throws away the data the
-      // server render just hydrated.
-      if (tokenReady && previous.identity !== identity) {
+      // Convex initially reports false while confirming the token supplied by
+      // SSR, so false -> true for the same identity preserves hydrated data.
+      // Once accepted, true -> false means Convex rejected the existing token
+      // and its auth-bound cache must be cleared even if the token is retained.
+      const tokenRejected = previous.isAuthenticated && !isAuthenticated;
+      if ((tokenReady && previous.identity !== identity) || tokenRejected) {
         void convexQueryClient.resetAuthQueries();
       }
-    }, [convexQueryClient, token]);
+    }, [convexQueryClient, isAuthenticated, token]);
 
     // Create HTTP proxy inside component with authStore access
     const httpProxy = useMemo(() => {
