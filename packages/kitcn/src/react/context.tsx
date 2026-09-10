@@ -194,16 +194,14 @@ export function createCRPCContext<TApi extends Record<string, unknown>>(
   }) {
     const authStore = useAuthStore();
     const token = useAuthValue('token');
-    const isAuthenticated = useAuthValue('isAuthenticated');
-    const previousAuthRef = useRef<{
-      isAuthenticated: boolean;
+    const previousIdentityRef = useRef<{
       identity: string | null;
     } | null>(null);
     // Get fetchAccessToken from context (immediately available, no race condition)
     const fetchAccessToken = useFetchAccessToken();
 
     useEffect(() => {
-      const previous = previousAuthRef.current;
+      const previous = previousIdentityRef.current;
       const tokenReady = token === null || decodeJwtExp(token) !== null;
       // Compare identity claims, not the raw token. Convex proactively rotates
       // the access token every ~15 minutes and kitcn stamps a fresh `iat` into
@@ -214,23 +212,20 @@ export function createCRPCContext<TApi extends Record<string, unknown>>(
       // Non-JWT strings (the opaque SSR session token) keep their own signature
       // so the opaque -> JWT and opaque -> logout transitions still reset.
       const identity = resolveAuthIdentity(token);
-      previousAuthRef.current = {
-        isAuthenticated,
-        identity,
-      };
+      previousIdentityRef.current = { identity };
 
       if (!previous) {
         return;
       }
 
-      if (
-        tokenReady &&
-        (previous.identity !== identity ||
-          previous.isAuthenticated !== isAuthenticated)
-      ) {
+      // Identity only. Whether Convex has accepted the token says nothing about
+      // which account holds it, and it flips on every server-rendered load once
+      // the token in the HTML is checked. A reset there throws away the data the
+      // server render just hydrated.
+      if (tokenReady && previous.identity !== identity) {
         void convexQueryClient.resetAuthQueries();
       }
-    }, [convexQueryClient, isAuthenticated, token]);
+    }, [convexQueryClient, token]);
 
     // Create HTTP proxy inside component with authStore access
     const httpProxy = useMemo(() => {

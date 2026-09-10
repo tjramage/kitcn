@@ -303,6 +303,66 @@ describe('createCRPCContext', () => {
     expect(convexQueryClient.resetAuthQueries).toHaveBeenCalledTimes(3);
   });
 
+  test('keeps hydrated queries while only the validation state changes', () => {
+    const api = {} as any;
+    const convexClient = {} as any;
+    const convexQueryClient = {
+      resetAuthQueries: mock(async () => {}),
+    } as any;
+
+    // A server-rendered page reaches the browser carrying a token. The auth
+    // state reports it as unauthenticated while Convex checks it, then as
+    // authenticated once Convex accepts it. The reader did not change, so the
+    // queries the server render hydrated must stay in the cache.
+    const ssrToken = `a.${Buffer.from(
+      JSON.stringify({
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        jti: 'ssr-token',
+        sub: 'account-a',
+      })
+    ).toString('base64')}.b`;
+
+    let authState = {
+      isAuthenticated: false,
+      token: ssrToken as string | null,
+    };
+    useAuthValueSpy.mockImplementation(
+      ((key: 'token' | 'isAuthenticated') => authState[key]) as any
+    );
+
+    const { CRPCProvider } = createCRPCContext({ api });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <CRPCProvider
+        convexClient={convexClient}
+        convexQueryClient={convexQueryClient}
+      >
+        {children}
+      </CRPCProvider>
+    );
+
+    const hook = renderHook(() => useMeta(), { wrapper });
+    expect(convexQueryClient.resetAuthQueries).not.toHaveBeenCalled();
+
+    authState = { isAuthenticated: true, token: ssrToken };
+    hook.rerender();
+    expect(convexQueryClient.resetAuthQueries).not.toHaveBeenCalled();
+
+    // A re-check of the same token moves the flag back and forth. The reader is
+    // the same throughout, so the cache stays.
+    authState = { isAuthenticated: false, token: ssrToken };
+    hook.rerender();
+    expect(convexQueryClient.resetAuthQueries).not.toHaveBeenCalled();
+
+    authState = { isAuthenticated: true, token: ssrToken };
+    hook.rerender();
+    expect(convexQueryClient.resetAuthQueries).not.toHaveBeenCalled();
+
+    // Signing out drops the token, which is a different identity.
+    authState = { isAuthenticated: false, token: null };
+    hook.rerender();
+    expect(convexQueryClient.resetAuthQueries).toHaveBeenCalledTimes(1);
+  });
+
   test('ignores token rotation but resets when identity claims change', () => {
     const api = {} as any;
     const convexClient = {} as any;
