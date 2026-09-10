@@ -11,11 +11,11 @@ docs/plans/templates/task.md
 
 Task source:
 - type: single-PR task
-- id / link: PR pending, fill in after opening
+- id / link: #459 https://github.com/udecode/kitcn/pull/459
 - title: authenticated SSR cRPC hydration is cleared when Convex confirms the same token
 
 Task PR:
-pending, fill in after opening
+#459 https://github.com/udecode/kitcn/pull/459
 
 ## Problem
 
