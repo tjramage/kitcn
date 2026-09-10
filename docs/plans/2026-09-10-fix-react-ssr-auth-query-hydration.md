@@ -210,13 +210,13 @@ Completion Gates:
 | Targeted behavior verification | yes | Run React suite. | 143 pass, 0 fail. |
 | TypeScript changed | yes | Run focused tests and package build. | Tests pass; build reaches known `better-call`/`rou3` gate. |
 | Package exports or file layout changed | no | N/A. | Neither changed. |
-| Package manifests or install graph changed | no | N/A. | Neither changed. |
+| Package manifests or install graph changed | yes | Regenerate fixture manifests through the CLI and verify the generated applications. | Six next/start/vite fixture manifests, with and without auth, use lucide-react ^1.44.0; fixtures:sync and all eight fixtures:check comparisons pass within full bun check. |
 | Agent rules or skills changed | no | N/A. | None changed. |
 | Workspace authority proof | yes | Run commands in kitcn repo/package. | Tests and lint ran at root; build ran in `packages/kitcn`. |
 | Browser surface changed | no | N/A. | No rendered UI changed. |
 | Browser final proof | no | N/A. | Provider lifecycle is directly tested. |
 | UI walkthrough | no | N/A. | No UI output changed. |
-| Scaffold or fixture output changed | no | N/A. | No scaffold source changed. |
+| Scaffold or fixture output changed | yes | Run fixtures:sync and fixtures:check; never hand-edit generated output. | CLI regeneration changed six fixture manifests; all eight fixture comparisons and runtime lanes pass. Scaffold source remains unchanged. |
 | Package behavior or public API changed | yes | Reuse active changeset. | Existing draft updated; new duplicate removed. |
 | Docs and kitcn skill sync changed | no | N/A. | User docs and published skill docs unchanged. |
 | Docs or content changed | yes | Validate plan and release copy. | Plan checker passes; lint checks 970 files with no fixes. |

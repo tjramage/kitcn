@@ -249,38 +249,38 @@ Error attempts:
 Completion Gates:
 | Gate | Applies | Required action | Evidence |
 | --- | --- | --- | --- |
-| Per-PR task ownership | pending | Record exact PR and dedicated task-plan path | pending |
-| Noncompliant PR disposition | pending | Verify task evidence or comment then close and read back | pending |
-| Targeted behavior proof | pending | Run smallest missing owning proof | pending |
-| Source/generated audit | pending | Prove correct source and regenerated mirrors | pending |
-| Package/docs/scenario closure | pending | Run every applicable local contract | pending |
+| Per-PR task ownership | yes | Record exact PR and dedicated task-plan path | Exact #459 body/head/owner and checker verified at 5e61afd5 |
+| Noncompliant PR disposition | no | Verify task evidence or comment then close and read back | PR is compliant; no close action applies |
+| Targeted behavior proof | yes | Run smallest missing owning proof | Post-push 143 React tests pass, zero failures |
+| Source/generated audit | yes | Prove correct source and regenerated mirrors | CLI regeneration; all eight fixture checks pass |
+| Package/docs/scenario closure | yes | Run every applicable local contract | Package build, typechecks, fixtures, verify and runtime lanes pass; no API/doc edits needed |
 | Feedback proof checkout | conditional | Compliant PR only: require local committed `HEAD` = fetched PR ref = live `headRefOid` before proof/reply/resolution and at terminal verification | pending |
 | Live PR feedback resolution | conditional | Compliant PR only: run full `resolve-pr-feedback` and close every actionable P1-or-higher finding; otherwise N/A with noncompliant stop receipts | pending |
-| Feedback priority classification | conditional | Compliant PR only: persist P0-P3 plus rationale for every actionable item; classify ambiguous P1-versus-lower as P1 | pending |
+| Feedback priority classification | yes | Persist P0-P3 and rationale | Six actionable originals retain P1; five addressed, Vercel authorization outstanding; wrapper/status items non-actionable by content |
 | Final P1 proof replay | conditional | Compliant PR only: after the final material branch push, rerun every P1-or-higher proof, including resolved/outdated items | pending |
 | Final live feedback read-back | conditional | Compliant PR only: re-fetch helper plus unfiltered top-level/all-thread inventories; require zero actionable P1-or-higher and explicit P2-or-lower deferrals | pending |
 | External terminal receipt | conditional | Compliant PR only: post/read exact-head receipt; require receipt/live/fetched/local OID equality and no unrecorded helper/raw URL except that verified receipt | pending |
-| Deslop | pending | Run bounded cleanup or N/A | pending |
-| Agent-native reviewer | pending | Run for workflow changes or N/A | pending |
-| Final lint | yes | Run `bun lint:fix` | pending |
-| Repository check | yes | Run `bun check` | pending |
+| Deslop | yes | Run bounded cleanup or N/A | Delta 179 to 179; zero added/worsened occurrences; three local lenses clean |
+| Agent-native reviewer | yes | Run for workflow changes or N/A | Loaded and audited owner/route/proof; no agent action changes or parity gaps |
+| Final lint | yes | Run `bun lint:fix` | 970 files; no changes |
+| Repository check | yes | Run `bun check` | Exit 0; full local logs recorded |
 | GitHub delivery | pending | Commit/push/open or update PR and read back | pending |
-| Autoreview | yes | Resolve every accepted actionable finding | pending |
+| Autoreview | yes | Resolve every accepted actionable finding | PR branch and local fixture-repair reviews both exit 0 with findings [] |
 | Goal plan complete | yes | Run `node .agents/skills/autogoal/scripts/check-complete.mjs docs/plans/2026-09-10-pr459-autoclosure.md` | pending |
-| Agent source / generated sync | pending | Run `bun install` when `.agents/rules/**` changed and verify generated mirrors | pending |
-| Installed lock audit | pending | Verify expected lock entries and removed skills through CLI-managed state | pending |
-| Agent action discoverability | pending | Source-audit the skill/rule path an agent will read | pending |
-| Helper and template smoke | pending | Syntax-check helpers and prove incomplete failure/completed representation when applicable | pending |
-| Agent-native review | pending | Load `.agents/skills/agent-native-reviewer/SKILL.md` and close accepted findings, or record N/A | pending |
+| Agent source / generated sync | no | Run sync for changed rules | No rule, skill, or generated agent mirror changes |
+| Installed lock audit | no | Verify changed skill lock state | No installed-skill changes |
+| Agent action discoverability | no | Audit changed agent actions | No new agent action; existing test/fixture commands are discoverable |
+| Helper and template smoke | no | Test changed helpers/templates | No helper or template changed; original task plan passes checker, closure plan correctly fails while incomplete |
+| Agent-native review | yes | Audit applicable agent surface | No accepted findings; existing CLI owns regenerated fixtures |
 
 Phase / pass table:
 | Phase | Status | Evidence | Next |
 | --- | --- | --- | --- |
-| Inventory | in_progress | plan created | missing proof |
-| Repair | pending | | review |
-| Review/checks | pending | | delivery |
-| Delivery | pending | | final audit |
-| Closeout | pending | | final |
+| Inventory | complete | Exact-head source and all feedback inventoried | repair |
+| Repair | complete | Six manifests regenerated, committed and pushed at 5e61afd5 | review |
+| Review/checks | complete locally | Full local gate and two reviews pass; hosted CI running | delivery |
+| Delivery | blocked | Vercel action-time confirmation unanswered; CI running | owner confirmation |
+| Closeout | blocked | No terminal receipt, merge, or release while authorization is outstanding | final audit after approval |
 
 Verification evidence:
 - Compliance: OPEN e02ac1f39124e0adabb1d164ababb0e8024db312; exactly one body task
@@ -314,13 +314,51 @@ Current checkpoint:
 - A goal-plan checker failure on the unchecked delivery gates is expected;
   it correctly represents incomplete autoclosure, not missing PR task evidence.
 
+Post-push checkpoint:
+- Published repair: 5e61afd57eb6c08eeca01274de74900641a2a33c on
+  tjramage/fix/react-ssr-auth-query-hydration. Local committed HEAD, refs/pr/459
+  and live PR head all match; PR remains OPEN.
+- Post-push React replay: 143 pass, zero fail; original task-plan checker
+  passes; release-draft reuse/single-outcome source assertions pass.
+  `/tmp/kitcn-pr459-react-postpush.log`.
+- Helper and all raw feedback fetched after push. Still four resolved threads,
+  eight inline comments, three top-level comments and six review bodies. The
+  changeset bot's same comment updates its OID/link but its claim and disposition
+  are unchanged. All pagination flags false; no new actionable reviewer item.
+- PR body updated and read back to match fresh local proof and outstanding
+  hosted CI/Vercel gates. Auto-release remains selected.
+- CI run 34535335699 was action_required. Reviewed unchanged contents:read CI
+  workflow and approved this exact run through GitHub; read back queued for
+  5e61afd5. This does not approve the separate Vercel Preview environment.
+- Vercel latest-head authorization is ready in Chrome; no approval click.
+- No terminal zero-P1 receipt, merge, or release performed. Resume after owner
+  confirmation, read the latest CI/head/feedback, then complete remaining gates.
+- This post-push ledger update is local, not a new published proof commit.
+
+Continuation audit:
+- Prior turn made progress: generated fixture repair was verified and published.
+- CI 34535335699 completed SUCCESS at 5e61afd5. Vercel approval is still
+  unanswered (second consecutive turn with the same authorization boundary).
+- https://github.com/udecode/kitcn/pull/459#issuecomment-5626042538 is a
+  non-actionable review-status summary, now Completed for 5e61afd5.
+- https://github.com/udecode/kitcn/pull/459#pullrequestreview-5172745672 is a
+  non-actionable wrapper; its actual finding is separately ledgered below.
+- https://github.com/udecode/kitcn/pull/459#discussion_r3983928239,
+  thread PRRT_kwDOPTlS686hQ2i0: P1 explicit, valid required-evidence mismatch.
+  The task plan's manifest and fixture-output gates still said no changes.
+  Corrected both gates to yes with six generated manifest updates, CLI sync,
+  eight fixture comparisons and runtime proof. This is evidence classification,
+  not a new source/config change. Reply and resolve after published-head replay.
+- Proof: source assertions require both gates to say yes and name their actual
+  generated-output verification; original task-plan checker must pass.
+
 Timeline:
 - 2026-09-10T21:49:34.652Z Autoclosure plan created.
 
 Reboot status:
 | Question | Answer |
 | --- | --- |
-| Where am I? | Inventory |
+| Where am I? | Published repair verified locally; awaiting Vercel approval and CI |
 | Where am I going? | Repair, review/checks, delivery, final audit |
 | What is the goal? | Close only PR459 with honest proof and delivery |
 | What have I learned? | See closure matrix |
@@ -330,5 +368,5 @@ Open risks:
 - Vercel Preview authorization requires explicit action-time confirmation.
   Requested through the user-input UI; no answer received yet. This is not a
   waiver or a code defect, and no deployment was approved.
-- Local fixture repair still needs review and push; exact-head feedback replay,
-  terminal receipt, green CI, merge and actual release readback remain undone.
+- Fixture repair is reviewed and pushed; post-push source/plan proofs pass.
+  Terminal receipt, green CI, merge and actual release readback remain undone.
