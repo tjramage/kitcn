@@ -1,5 +1,22 @@
 # Fix React SSR auth query hydration
 
+Maintainer closeout (2026-09-10):
+- The owner explicitly invoked `kitcn:autoclosure` for PR #459. Commit, push,
+  feedback replies and delivery are authorized for this continuation; the
+  contributor's earlier user-owned Git boundary below describes that earlier
+  run only.
+- Current closure ledger: `docs/plans/2026-09-10-pr459-autoclosure.md`.
+- At e02ac1f39124e0adabb1d164ababb0e8024db312, this checkout independently passed
+  all 143 React tests, the kitcn package build and this plan's checker. The
+  contributor's earlier build failure does not reproduce locally.
+- CI failed on generated fixture manifests. `bun run fixtures:sync` regenerated
+  six manifests with lucide-react ^1.44.0; no hand edits to fixture outputs.
+- Full `bun check` passes locally, including regenerated fixture checks,
+  verify and runtime lanes. Independent review of the PR source found no P0/P1
+  defects. The previous local-complete verdict is not a merge-ready verdict:
+  Vercel fork-deployment authorization awaits the owner's confirmation, and
+  fixture-repair delivery is recorded in the closure ledger.
+
 Objective:
 Stop `CRPCProvider` clearing authenticated cRPC queries when Convex confirms a
 token the client already held; done when React tests, lint, release note, and
