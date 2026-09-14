@@ -24,8 +24,7 @@ Task source:
 - root-cause layer: the Convex JWT cookie `after` hook.
 
 Task PR:
-Not yet created. This plan covers the JWT-cookie hook fix only; add the PR
-number and URL when available.
+#465 https://github.com/udecode/kitcn/pull/465
 
 Findings:
 - The hook matches sign-in routes, including an initial social redirect that
@@ -72,8 +71,8 @@ Completion threshold:
 
 Blocked condition:
 The recorded full repository check fails in generated Next fixture lint.
-PR creation, plan-reference verification and disposition of the full-check
-failure remain outstanding.
+PR plan-reference verification and disposition of the full-check failure
+remain outstanding.
 
 Verification surface:
 From the repository root, using the declared Bun 1.3.9:
@@ -167,7 +166,8 @@ Work Checklist:
 - [x] Document a reproducible affected-version compatibility check.
 - [x] Record package and repository verification results.
 - [x] Add a patch changeset.
-- [ ] Record the PR number and verify its plan reference.
+- [x] Record the PR number.
+- [ ] Verify the PR body's plan reference.
 - [ ] Resolve the full-check blocker or record a maintainer disposition.
 
 Completion Gates:
@@ -180,7 +180,8 @@ Completion Gates:
 | Code review | recorded | Implementation review reported no actionable findings |
 | Release artifact | present | Patch changeset |
 | Full repository check | blocked | Generated Next fixture ESLint failure |
-| PR ownership and plan reference | outstanding | PR not yet created |
+| PR ownership | recorded | #465 |
+| PR plan reference | outstanding | PR body reference not yet verified |
 
 Phase / pass table:
 | Phase | Status | Evidence |
@@ -189,7 +190,7 @@ Phase / pass table:
 | Implementation | complete | Sessionless guard and valid Headers |
 | Focused verification | complete | HTTP cases pass on all three tested versions |
 | Full repository verification | blocked | Generated fixture lint failure |
-| PR delivery | pending | PR number and plan reference unavailable |
+| PR delivery | opened | #465; plan reference verification outstanding |
 
 Verification evidence:
 The documented compatibility recipe was verified on 2026-09-14 against the
