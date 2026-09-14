@@ -25,8 +25,7 @@ Task source:
 - root-cause layer: constructor identity in the public cRPC error guards.
 
 Task PR:
-Not yet created. This plan covers the cRPC error-guard fix only; add the PR
-number and URL when available.
+#464 https://github.com/udecode/kitcn/pull/464
 
 Findings:
 - tsdown builds client, Solid and server entrypoints in separate groups,
@@ -81,8 +80,8 @@ Completion threshold:
 
 Blocked condition:
 Full repository verification remains blocked by the generated Next fixture's
-ESLint failure described below. PR creation and PR metadata verification are
-outstanding; this plan does not claim completed delivery.
+ESLint failure described below. Verification of the PR body's plan reference
+remains outstanding.
 
 Verification surface:
 Run from the repository root using the declared `bun@1.3.9`:
@@ -106,7 +105,8 @@ Work Checklist:
 - [x] Cover code matching, lookalike rejection and unchanged HTTP classification.
 - [x] Record package build, typecheck, lint and full-suite results.
 - [x] Add a patch changeset.
-- [ ] Record the PR number and verify its plan reference.
+- [x] Record the PR number.
+- [ ] Verify the PR body's plan reference.
 - [ ] Resolve the full-check blocker or record a maintainer disposition.
 
 Completion Gates:
@@ -119,7 +119,8 @@ Completion Gates:
 | Code review | recorded | Implementation review reported no actionable findings |
 | Release artifact | present | `.changeset/crpc-guards-across-entrypoints.md` |
 | Full repository check | blocked | Generated Next fixture ESLint failure |
-| PR ownership and plan reference | outstanding | PR not yet created |
+| PR ownership | recorded | #464 |
+| PR plan reference | outstanding | PR body reference not yet verified |
 
 Phase / pass table:
 | Phase | Status | Evidence |
@@ -128,7 +129,7 @@ Phase / pass table:
 | Implementation | complete | Validated shape check; shared guard delegation |
 | Focused verification | complete | cRPC tests, build, typechecks and lint pass |
 | Full repository verification | blocked | Generated fixture lint failure |
-| PR delivery | pending | PR number and plan reference not yet available |
+| PR delivery | opened | #464; plan reference verification outstanding |
 
 Verification evidence:
 Results recorded during implementation on 2026-09-14:
