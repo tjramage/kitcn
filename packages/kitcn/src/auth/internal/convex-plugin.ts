@@ -261,6 +261,10 @@ export const convex = (opts: {
             );
           },
           handler: createAuthMiddleware(async (ctx) => {
+            // OAuth redirect starts have no session to mint a token for.
+            if (!(ctx.context.session ?? ctx.context.newSession)) {
+              return;
+            }
             const originalSession = ctx.context.session;
             try {
               ctx.context.session =
@@ -268,7 +272,7 @@ export const convex = (opts: {
               const { token } = await jwt.endpoints.getToken({
                 ...ctx,
                 asResponse: false,
-                headers: {},
+                headers: new Headers(),
                 method: 'GET',
                 returnHeaders: false,
                 returnStatus: false,

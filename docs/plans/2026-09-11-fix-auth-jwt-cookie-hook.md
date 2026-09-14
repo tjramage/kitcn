@@ -1,0 +1,234 @@
+# Fix auth JWT cookie hook
+
+Objective:
+Skip Convex JWT generation for auth steps without a session and pass valid
+Headers to Better Auth's token endpoint, preventing an internal error during
+the initial social sign-in redirect.
+
+Goal plan:
+docs/plans/2026-09-11-fix-auth-jwt-cookie-hook.md
+
+Template:
+docs/plans/templates/task.md
+
+Applied packs:
+- package-api (docs/plans/templates/packs/package-api.md)
+
+Task source:
+- type: single-PR bug fix
+- id / link: N/A; no issue filed.
+- title: fix(auth): skip JWT minting for sessionless auth steps
+- acceptance criteria: a sessionless social sign-in start logs no internal
+  error and sets no Convex JWT cookie; new and existing sessions retain cookie
+  issuance; the token endpoint receives a Headers instance.
+- root-cause layer: the Convex JWT cookie `after` hook.
+
+Task PR:
+Not yet created. This plan covers the JWT-cookie hook fix only; add the PR
+number and URL when available.
+
+Findings:
+- The hook matches sign-in routes, including an initial social redirect that
+  produces no session, and calls the JWT token endpoint with `headers: {}`.
+- In the tested Better Auth 1.7.3 and 1.7.4 versions, the endpoint reads
+  `ctx.headers?.get("cookie")` on this path. A plain object has no `get`
+  method, producing a logged internal error even though the hook catches it.
+- Pinned Better Auth 1.7.1 returns before that access. The HTTP tests pass on
+  the unfixed implementation at this pin.
+- Both affected versions fall within the supported peer range
+  `>=1.7.0 <1.8.0`. The evidence establishes behaviour on the tested
+  versions, not every release within that range.
+
+Decisions and tradeoffs:
+- Return before context mutation if neither `session` nor `newSession`
+  exists.
+- Retain the existing temporary session assignment for token generation and
+  restoration afterward; pass `new Headers()` to the token endpoint.
+- Preserve the dependency pin and public plugin signature.
+- Exercise the real Better Auth HTTP handler with an in-memory adapter and
+  synthetic credentials. No live OAuth exchange or backend is required.
+
+Constraints:
+- Keep the change local to the JWT cookie hook.
+- Preserve cookie issuance when a session exists.
+- Preserve the existing session restoration assignment, error handling and
+  cookie-clearing hook.
+
+Boundaries:
+- Implementation: `packages/kitcn/src/auth/internal/convex-plugin.ts`.
+- Tests: `packages/kitcn/src/auth/internal/convex-plugin-cookie.vitest.ts`.
+- Release: `.changeset/auth-jwt-cookie-sessionless-start.md`, a kitcn patch.
+- Non-goals: other auth hooks, dependency upgrades, public APIs, CLI,
+  environment management and scaffold changes.
+
+Completion threshold:
+- Reproduce the logged TypeError through real HTTP handlers on affected
+  versions, then demonstrate its absence with the fix.
+- Verify sessionless starts set no JWT cookie, email sign-up sets one, and
+  authenticated `get-session` returns the expected user and sets one.
+- Run package build, package/root typechecks and lint; record the full
+  repository check separately.
+- Include a patch changeset and identify the exact PR before closeout.
+
+Blocked condition:
+The recorded full repository check fails in generated Next fixture lint.
+PR creation, plan-reference verification and disposition of the full-check
+failure remain outstanding.
+
+Verification surface:
+From the repository root, using the declared Bun 1.3.9:
+- `bunx vitest run packages/kitcn/src/auth/internal/convex-plugin-cookie.vitest.ts`
+  exercises source on pinned Better Auth 1.7.1.
+- The compatibility recipe below exercises the same cases through the packed
+  `kitcn/auth` entrypoint on 1.7.1, 1.7.3 and 1.7.4.
+- `bun --cwd packages/kitcn build`.
+- `bun --cwd packages/kitcn typecheck` and `bun typecheck`.
+- `bun lint` and `bun run check`.
+
+Reproducing the compatibility checks:
+Build the current package first with `bun --cwd packages/kitcn build`.
+Then run the following in Bash from the repository root. It packs that build,
+copies the committed tests into temporary projects and changes only their
+runner and plugin imports. Dependencies and caches are isolated from the
+checkout. Registry access is required; dependency lifecycle scripts are disabled.
+
+```bash
+(
+set -eu
+export JWT_COOKIE_REPO="$PWD"
+export JWT_COOKIE_TMP="$(mktemp -d "${TMPDIR:-/tmp}/kitcn-jwt-cookie.XXXXXX")"
+export BUN_INSTALL_CACHE_DIR="$JWT_COOKIE_TMP/bun-cache"
+export TMPDIR="$JWT_COOKIE_TMP"
+npm pack ./packages/kitcn --ignore-scripts \
+  --cache "$JWT_COOKIE_TMP/npm-cache" \
+  --pack-destination "$JWT_COOKIE_TMP" --json > "$JWT_COOKIE_TMP/pack.json"
+
+node --input-type=module <<'NODE'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const root = process.env.JWT_COOKIE_REPO;
+const temp = process.env.JWT_COOKIE_TMP;
+const [{ filename }] = JSON.parse(readFileSync(join(temp, 'pack.json'), 'utf8'));
+const test = readFileSync(join(root,
+  'packages/kitcn/src/auth/internal/convex-plugin-cookie.vitest.ts'), 'utf8')
+  .replace("from 'vitest'", "from 'bun:test'")
+  .replace("from './convex-plugin'", "from 'kitcn/auth'");
+
+for (const version of ['1.7.1', '1.7.3', '1.7.4']) {
+  const directory = join(temp, version);
+  mkdirSync(directory);
+  writeFileSync(join(directory, 'package.json'), JSON.stringify({
+    name: 'jwt-cookie-compat', private: true, type: 'module',
+    dependencies: {
+      'better-auth': version, convex: '1.44.0', zod: '4.3.6',
+      kitcn: join(temp, filename),
+    },
+  }, null, 2));
+  writeFileSync(join(directory, 'cookie.test.ts'), test);
+}
+NODE
+
+jwt_cookie_failed=0
+for version in 1.7.1 1.7.3 1.7.4; do
+  printf 'Better Auth %s\n' "$version"
+  (
+    cd "$JWT_COOKIE_TMP/$version"
+    bun install --ignore-scripts && bun test cookie.test.ts
+  ) || jwt_cookie_failed=1
+done
+printf 'Compatibility files: %s\n' "$JWT_COOKIE_TMP"
+exit "$jwt_cookie_failed"
+)
+```
+
+Expected results: two passing tests on each version. The script retains the
+temporary projects and lockfiles at the printed path for inspection.
+
+For before/after reproduction, use a disposable checkout containing this test
+and the plugin from base `c12407fc`. Build and run the same recipe there:
+1.7.1 should pass both cases; 1.7.3 and 1.7.4 should fail the sessionless
+OAuth case with the logged TypeError. Apply the two hook changes, rebuild and
+rerun to verify both cases pass. A fresh packed build is required for each run.
+
+Start Gates:
+| Gate | Applies | Evidence |
+| --- | --- | --- |
+| Defect reproduced before fix | yes | Real-handler failure on Better Auth 1.7.3 and 1.7.4 |
+| Version dependence identified | yes | Pinned 1.7.1 passes before and after |
+| Ownership boundary identified | yes | Convex JWT cookie hook |
+| Public API impact assessed | yes | No signature or dependency changes |
+| Release artifact selected | yes | Patch changeset |
+
+Work Checklist:
+- [x] Reproduce the failure on affected supported versions.
+- [x] Skip sessionless token generation and supply valid Headers.
+- [x] Verify sessionless, sign-up and authenticated get-session HTTP cases.
+- [x] Document a reproducible affected-version compatibility check.
+- [x] Record package and repository verification results.
+- [x] Add a patch changeset.
+- [ ] Record the PR number and verify its plan reference.
+- [ ] Resolve the full-check blocker or record a maintainer disposition.
+
+Completion Gates:
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Affected-version regression | passed | Recorded red-then-green runs on 1.7.3 and 1.7.4 |
+| Pinned-version behaviour | passed | Two HTTP tests pass before and after on 1.7.1 |
+| Package build and typechecks | passed | Recorded exit 0 |
+| Lint | passed | Recorded clean result |
+| Code review | recorded | Implementation review reported no actionable findings |
+| Release artifact | present | Patch changeset |
+| Full repository check | blocked | Generated Next fixture ESLint failure |
+| PR ownership and plan reference | outstanding | PR not yet created |
+
+Phase / pass table:
+| Phase | Status | Evidence |
+| --- | --- | --- |
+| Reproduction | complete | Affected-version real-handler failures |
+| Implementation | complete | Sessionless guard and valid Headers |
+| Focused verification | complete | HTTP cases pass on all three tested versions |
+| Full repository verification | blocked | Generated fixture lint failure |
+| PR delivery | pending | PR number and plan reference unavailable |
+
+Verification evidence:
+The documented compatibility recipe was verified on 2026-09-14 against the
+existing fixed build: two tests passed on each of Better Auth 1.7.1, 1.7.3
+and 1.7.4 in freshly installed temporary projects.
+
+Results recorded during implementation on 2026-09-14:
+- Unfixed packed build: Better Auth 1.7.3 and 1.7.4 each report one pass and
+  one failure, with `ctx.headers?.get is not a function` on the sessionless
+  social sign-in start.
+- Fixed rebuilt package: both affected-version harnesses report two passes.
+- Pinned 1.7.1 source test: two passes before and after the fix.
+- Package build, package/root typechecks and lint passed.
+- Full `bun run check`: exit 2. Lint, typecheck, Bun tests (1431 pass),
+  Vitest (1052 pass, 14 skipped), CLI tests (124 pass) and the Concave smoke
+  test passed before generated Next fixture lint failed.
+- Fixture error: ESLint 10.10.0, `react/display-name`,
+  `contextOrFilename.getFilename is not a function`. The implementation
+  report identifies the same signature on upstream base `c12407fc`.
+  This patch changes no fixture or lint configuration; the full check
+  nevertheless remains failing.
+
+Regression coverage:
+| Behaviour | Evidence |
+| --- | --- |
+| Sessionless social start returns the authorization URL without logged errors | Real HTTP handler on all three tested versions |
+| Sessionless start sets no Convex JWT cookie | Response cookie assertion |
+| New session receives a JWT cookie | Email sign-up response |
+| Existing session receives a JWT cookie | Authenticated get-session response |
+| Existing session returns the expected user | Get-session response body |
+
+Verification limits:
+- Returning a user from `get-session` does not directly prove restoration of
+  the hook's internal `ctx.context.session`. The restoration assignment is
+  preserved in source; no direct restoration assertion is claimed.
+- Tests cover the initial social redirect, email sign-up and authenticated
+  get-session. They do not complete an external OAuth callback or exercise
+  every session-producing route.
+- At the current 1.7.1 pin, the committed tests do not detect removal of this
+  fix. Run the affected-version recipe to check the reported regression.
+- The before/after HTTP cases establish the combined fix; they do not isolate
+  each changed line as independently necessary.
