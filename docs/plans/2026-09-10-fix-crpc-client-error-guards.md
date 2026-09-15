@@ -63,7 +63,7 @@ Boundaries:
 - Implementation: `packages/kitcn/src/crpc/error.ts`.
 - Tests: `packages/kitcn/src/crpc/error.test.ts` and
   `packages/kitcn/src/crpc/package-entrypoints.integration.test.ts`.
-- Release: `.changeset/quiet-maps-lint.md`, the current living `kitcn` patch.
+- Release: `.changeset/crpc-guards-across-entrypoints.md`, a `kitcn` patch.
 - Non-goals: `isHttpClientError`, `isAuthMutationError`, bundler
   deduplication, cross-realm or serialized error support, and a new error
   protocol.
@@ -76,12 +76,11 @@ Completion threshold:
   unchanged HTTP classification.
 - Package build, package and root typechecks, and lint pass.
 - Record the full `bun check` result separately from focused verification.
-- Include the patch in the living changeset and identify the exact PR before
-  closeout.
+- Include a patch changeset and identify the exact PR before closeout.
 
 Blocked condition:
-Resolved by merged prerequisite PR #467. Final exact-head verification remains
-pending after folding this patch into the living changeset.
+Resolved by merged prerequisite PR #467. Release PR #468 then consumed the
+shared changeset, so this branch retains its standalone patch changeset.
 
 Verification surface:
 Run from the repository root using the declared `bun@1.3.9`:
@@ -117,7 +116,7 @@ Completion Gates:
 | Typechecks | passed | Package and repository root |
 | Lint | passed | `biome check && eslint` |
 | Code review | recorded | Implementation review reported no actionable findings |
-| Release artifact | present | cRPC bullet in `.changeset/quiet-maps-lint.md` |
+| Release artifact | present | `.changeset/crpc-guards-across-entrypoints.md` |
 | Full repository check | passed before final review repair | Exact-head CI run `34914786162` passed in 6m28s; final repaired-head CI pending |
 | PR ownership | recorded | #464 |
 | PR plan reference | passed | Body names this plan and fetched head contains it with exact PR #464 |
@@ -154,9 +153,11 @@ Results recorded during implementation on 2026-09-14:
   CI run `34914786162` passed in 6m28s after updating this PR onto `main`.
 
 Review closure:
-- Accepted P1 [discussion_r4010936839](https://github.com/udecode/kitcn/pull/464#discussion_r4010936839): the updated parent already owns the unreleased
-  `kitcn` patch in `.changeset/quiet-maps-lint.md`, so this PR folds its bullet
-  into that living draft and removes the second changeset file.
+- P1 [discussion_r4010936839](https://github.com/udecode/kitcn/pull/464#discussion_r4010936839) was valid at head `74622953`, where the updated parent owned the
+  unreleased `kitcn` patch in `.changeset/quiet-maps-lint.md`. The bullet was
+  folded into that draft. Release PR #468 then consumed the draft before this
+  PR merged, so conflict resolution preserves the released ESLint note in the
+  changelog and restores only this PR's cRPC note as a standalone changeset.
 
 Regression coverage:
 | Behaviour | Coverage |
