@@ -63,7 +63,7 @@ Boundaries:
 - Implementation: `packages/kitcn/src/crpc/error.ts`.
 - Tests: `packages/kitcn/src/crpc/error.test.ts` and
   `packages/kitcn/src/crpc/package-entrypoints.integration.test.ts`.
-- Release: `.changeset/crpc-guards-across-entrypoints.md`, a kitcn patch.
+- Release: `.changeset/quiet-maps-lint.md`, the current living `kitcn` patch.
 - Non-goals: `isHttpClientError`, `isAuthMutationError`, bundler
   deduplication, cross-realm or serialized error support, and a new error
   protocol.
@@ -76,12 +76,12 @@ Completion threshold:
   unchanged HTTP classification.
 - Package build, package and root typechecks, and lint pass.
 - Record the full `bun check` result separately from focused verification.
-- Include a patch changeset and identify the exact PR before closeout.
+- Include the patch in the living changeset and identify the exact PR before
+  closeout.
 
 Blocked condition:
-Full repository verification remains blocked by the generated Next fixture's
-ESLint failure described below. Verification of the PR body's plan reference
-remains outstanding.
+Resolved by merged prerequisite PR #467. Final exact-head verification remains
+pending after folding this patch into the living changeset.
 
 Verification surface:
 Run from the repository root using the declared `bun@1.3.9`:
@@ -106,8 +106,8 @@ Work Checklist:
 - [x] Record package build, typecheck, lint and full-suite results.
 - [x] Add a patch changeset.
 - [x] Record the PR number.
-- [ ] Verify the PR body's plan reference.
-- [ ] Resolve the full-check blocker or record a maintainer disposition.
+- [x] Verify the PR body's plan reference.
+- [x] Resolve the full-check blocker or record a maintainer disposition.
 
 Completion Gates:
 | Gate | Result | Evidence |
@@ -117,10 +117,10 @@ Completion Gates:
 | Typechecks | passed | Package and repository root |
 | Lint | passed | `biome check && eslint` |
 | Code review | recorded | Implementation review reported no actionable findings |
-| Release artifact | present | `.changeset/crpc-guards-across-entrypoints.md` |
-| Full repository check | blocked | Generated Next fixture ESLint failure |
+| Release artifact | present | cRPC bullet in `.changeset/quiet-maps-lint.md` |
+| Full repository check | passed before final review repair | Exact-head CI run `34914786162` passed in 6m28s; final repaired-head CI pending |
 | PR ownership | recorded | #464 |
-| PR plan reference | outstanding | PR body reference not yet verified |
+| PR plan reference | passed | Body names this plan and fetched head contains it with exact PR #464 |
 
 Phase / pass table:
 | Phase | Status | Evidence |
@@ -128,8 +128,8 @@ Phase / pass table:
 | Reproduction | complete | Built React and Solid tests fail on base `c12407fc` |
 | Implementation | complete | Validated shape check; shared guard delegation |
 | Focused verification | complete | cRPC tests, build, typechecks and lint pass |
-| Full repository verification | blocked | Generated fixture lint failure |
-| PR delivery | opened | #464; plan reference verification outstanding |
+| Full repository verification | in progress | PR #467 removed the fixture blocker; repaired-head CI pending |
+| PR delivery | in progress | #464; exact task evidence and updated-head approval verified |
 
 Verification evidence:
 Results recorded during implementation on 2026-09-14:
@@ -150,7 +150,13 @@ Results recorded during implementation on 2026-09-14:
   `contextOrFilename.getFilename is not a function`.
   The implementation review recorded the same failure in upstream CI run
   34713975670 on base `c12407fc`. This patch changes no fixture, scaffold
-  or lint configuration; the full check nevertheless remains failing.
+  or lint configuration. Merged prerequisite #467 repaired that shared gate;
+  CI run `34914786162` passed in 6m28s after updating this PR onto `main`.
+
+Review closure:
+- Accepted P1 [discussion_r4010936839](https://github.com/udecode/kitcn/pull/464#discussion_r4010936839): the updated parent already owns the unreleased
+  `kitcn` patch in `.changeset/quiet-maps-lint.md`, so this PR folds its bullet
+  into that living draft and removes the second changeset file.
 
 Regression coverage:
 | Behaviour | Coverage |
