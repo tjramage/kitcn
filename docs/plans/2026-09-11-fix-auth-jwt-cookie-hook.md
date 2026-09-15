@@ -62,8 +62,9 @@ Boundaries:
 - Implementation: `packages/kitcn/src/auth/internal/convex-plugin.ts`.
 - Tests: `packages/kitcn/src/auth/internal/convex-plugin-cookie.vitest.ts` and
   `packages/kitcn/src/auth/internal/convex-plugin-cookie-hook.vitest.ts`.
-- Release: the auth bullet in the living
-  `.changeset/crpc-guards-across-entrypoints.md` kitcn patch.
+- Release: `.changeset/auth-jwt-cookie-sessionless-start.md`, a kitcn patch.
+  Release PR #469 consumed the earlier living cRPC draft before this repair
+  landed, so the auth note is standalone on the final parent.
 - Non-goals: other auth hooks, dependency upgrades, public APIs, CLI,
   environment management and scaffold changes.
 
@@ -188,8 +189,8 @@ Completion Gates:
 | Package build and typechecks | yes | passed | Recorded exit 0 |
 | Lint | yes | passed | Recorded clean result |
 | Code review | yes | passed | P0/P1 autoreview clean at 0.94 |
-| Release artifact | yes | present | Auth bullet folded into the living kitcn patch |
-| Full repository check | yes | passed | `bun check` after merging current `main` |
+| Release artifact | yes | present | Standalone auth patch after #469 consumed the prior living draft |
+| Full repository check | yes | passed | All component lanes passed on final #469 parent |
 | PR ownership | yes | recorded | #465 |
 | PR plan reference | yes | passed | PR body names this exact plan |
 
@@ -231,6 +232,13 @@ Closeout evidence on 2026-09-15:
 - Package and root typechecks, package build and lint passed after merging
   current `main`.
 - Full `bun check` passed, including fixture parity and runtime scenario lanes.
+- Release PR #469 then consumed the cRPC living draft. Source-backed conflict
+  resolution preserved its changelog/version bump and restored only this PR's
+  auth note as a standalone patch.
+- On the final #469 parent, `bun check` passed lint, typechecks, Bun/Vitest/CLI
+  tests and Concave smoke before one temporary Next install lost `diff.min.js`.
+  After the policy-required `bun install`, the exact failed `fixtures:check`
+  lane passed, followed by `test:verify` and every `test:runtime` scenario.
 
 Regression coverage:
 | Behaviour | Evidence |
