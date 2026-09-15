@@ -34,6 +34,8 @@ Findings:
   method, producing a logged internal error even though the hook catches it.
 - Pinned Better Auth 1.7.1 returns before that access. The HTTP tests pass on
   the unfixed implementation at this pin.
+- A direct token-guard test is required because the pinned-version HTTP test
+  cannot detect removal of either fix.
 - Both affected versions fall within the supported peer range
   `>=1.7.0 <1.8.0`. The evidence establishes behaviour on the tested
   versions, not every release within that range.
@@ -43,6 +45,9 @@ Decisions and tradeoffs:
   exists.
 - Retain the existing temporary session assignment for token generation and
   restoration afterward; pass `new Headers()` to the token endpoint.
+- Keep the token guard internal and inject the endpoint call in its unit test,
+  proving both the sessionless short-circuit and `Headers` input without
+  widening the package API.
 - Preserve the dependency pin and public plugin signature.
 - Exercise the real Better Auth HTTP handler with an in-memory adapter and
   synthetic credentials. No live OAuth exchange or backend is required.
@@ -55,8 +60,10 @@ Constraints:
 
 Boundaries:
 - Implementation: `packages/kitcn/src/auth/internal/convex-plugin.ts`.
-- Tests: `packages/kitcn/src/auth/internal/convex-plugin-cookie.vitest.ts`.
-- Release: `.changeset/auth-jwt-cookie-sessionless-start.md`, a kitcn patch.
+- Tests: `packages/kitcn/src/auth/internal/convex-plugin-cookie.vitest.ts` and
+  `packages/kitcn/src/auth/internal/convex-plugin-cookie-hook.vitest.ts`.
+- Release: the auth bullet in the living
+  `.changeset/crpc-guards-across-entrypoints.md` kitcn patch.
 - Non-goals: other auth hooks, dependency upgrades, public APIs, CLI,
   environment management and scaffold changes.
 
@@ -65,19 +72,22 @@ Completion threshold:
   versions, then demonstrate its absence with the fix.
 - Verify sessionless starts set no JWT cookie, email sign-up sets one, and
   authenticated `get-session` returns the expected user and sets one.
+- Directly verify a sessionless hook skips the endpoint and a session-bearing
+  hook supplies a `Headers` instance.
 - Run package build, package/root typechecks and lint; record the full
   repository check separately.
 - Include a patch changeset and identify the exact PR before closeout.
 
 Blocked condition:
-The recorded full repository check fails in generated Next fixture lint.
-PR plan-reference verification and disposition of the full-check failure
-remain outstanding.
+None. Prerequisite #467 repaired the generated Next fixture lint lane before
+this closeout, and #464 supplied the current living kitcn changeset.
 
 Verification surface:
 From the repository root, using the declared Bun 1.3.9:
 - `bunx vitest run packages/kitcn/src/auth/internal/convex-plugin-cookie.vitest.ts`
   exercises source on pinned Better Auth 1.7.1.
+- `bunx vitest run packages/kitcn/src/auth/internal/convex-plugin-cookie-hook.vitest.ts`
+  directly exercises the session guard and token-request headers.
 - The compatibility recipe below exercises the same cases through the packed
   `kitcn/auth` entrypoint on 1.7.1, 1.7.3 and 1.7.4.
 - `bun --cwd packages/kitcn build`.
@@ -167,21 +177,21 @@ Work Checklist:
 - [x] Record package and repository verification results.
 - [x] Add a patch changeset.
 - [x] Record the PR number.
-- [ ] Verify the PR body's plan reference.
-- [ ] Resolve the full-check blocker or record a maintainer disposition.
+- [x] Verify the PR body's plan reference.
+- [x] Resolve the full-check blocker or record a maintainer disposition.
 
 Completion Gates:
-| Gate | Result | Evidence |
-| --- | --- | --- |
-| Affected-version regression | passed | Recorded red-then-green runs on 1.7.3 and 1.7.4 |
-| Pinned-version behaviour | passed | Two HTTP tests pass before and after on 1.7.1 |
-| Package build and typechecks | passed | Recorded exit 0 |
-| Lint | passed | Recorded clean result |
-| Code review | recorded | Implementation review reported no actionable findings |
-| Release artifact | present | Patch changeset |
-| Full repository check | blocked | Generated Next fixture ESLint failure |
-| PR ownership | recorded | #465 |
-| PR plan reference | outstanding | PR body reference not yet verified |
+| Gate | Applies | Result | Evidence |
+| --- | --- | --- | --- |
+| Affected-version regression | yes | passed | Recorded red-then-green runs on 1.7.3 and 1.7.4 |
+| Pinned-version behaviour | yes | passed | Two HTTP tests pass on 1.7.1; direct guard test passed red-green |
+| Package build and typechecks | yes | passed | Recorded exit 0 |
+| Lint | yes | passed | Recorded clean result |
+| Code review | yes | passed | P0/P1 autoreview clean at 0.94 |
+| Release artifact | yes | present | Auth bullet folded into the living kitcn patch |
+| Full repository check | yes | passed | `bun check` after merging current `main` |
+| PR ownership | yes | recorded | #465 |
+| PR plan reference | yes | passed | PR body names this exact plan |
 
 Phase / pass table:
 | Phase | Status | Evidence |
@@ -189,8 +199,8 @@ Phase / pass table:
 | Reproduction | complete | Affected-version real-handler failures |
 | Implementation | complete | Sessionless guard and valid Headers |
 | Focused verification | complete | HTTP cases pass on all three tested versions |
-| Full repository verification | blocked | Generated fixture lint failure |
-| PR delivery | opened | #465; plan reference verification outstanding |
+| Full repository verification | complete | `bun check` passed all lanes |
+| PR delivery | complete | #465; final repair ready for exact-head push |
 
 Verification evidence:
 The documented compatibility recipe was verified on 2026-09-14 against the
@@ -213,6 +223,15 @@ Results recorded during implementation on 2026-09-14:
   This patch changes no fixture or lint configuration; the full check
   nevertheless remains failing.
 
+Closeout evidence on 2026-09-15:
+- The direct guard test failed before the internal helper existed, then all
+  three focused tests passed after the helper was wired into the hook.
+- Fresh packed builds passed both HTTP cases on Better Auth 1.7.1, 1.7.3 and
+  1.7.4.
+- Package and root typechecks, package build and lint passed after merging
+  current `main`.
+- Full `bun check` passed, including fixture parity and runtime scenario lanes.
+
 Regression coverage:
 | Behaviour | Evidence |
 | --- | --- |
@@ -221,6 +240,8 @@ Regression coverage:
 | New session receives a JWT cookie | Email sign-up response |
 | Existing session receives a JWT cookie | Authenticated get-session response |
 | Existing session returns the expected user | Get-session response body |
+| Sessionless hook never calls the token endpoint | Direct injected-endpoint assertion |
+| Session-bearing hook supplies real Headers | Direct injected-endpoint assertion |
 
 Verification limits:
 - Returning a user from `get-session` does not directly prove restoration of
@@ -229,7 +250,23 @@ Verification limits:
 - Tests cover the initial social redirect, email sign-up and authenticated
   get-session. They do not complete an external OAuth callback or exercise
   every session-producing route.
-- At the current 1.7.1 pin, the committed tests do not detect removal of this
-  fix. Run the affected-version recipe to check the reported regression.
+- The pinned-version HTTP tests do not detect removal of this fix by
+  themselves; the direct guard test and affected-version recipe close that
+  gap.
 - The before/after HTTP cases establish the combined fix; they do not isolate
   each changed line as independently necessary.
+
+Reboot status:
+| Question | Answer |
+| --- | --- |
+| Where am I? | Final repair verified and ready to push to PR #465 |
+| Where am I going? | Exact-head CI, feedback read-back, terminal receipt and merge |
+| What is the goal? | Merge the sessionless JWT-cookie fix with durable regression proof |
+| What have I learned? | Pinned 1.7.1 needs a direct guard test; affected versions prove the public failure |
+| What have I done? | Merged current main, closed both review findings, and passed every local gate |
+
+Open risks:
+- GitHub exact-head CI and automated review must rerun after the final push.
+- Vercel preview authorization is unavailable for the contributor fork, but
+  this package-only change has no rendered UI surface and Vercel is not a
+  required repository check.
